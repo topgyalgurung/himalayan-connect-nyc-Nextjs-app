@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// DATA MODEL 
+
+// USER 
+model User {
+  id                     Int                      @id @default(autoincrement())  
+  firstName               String
+  lastName             String
+  email                  String                   @unique
+  password               String
+  image         String?
+  role                  Role                  @default(USER)
+  isVerified           Boolean   @default(false)
+  forgotPasswordToken       String?  
+  forgotPasswordTokenExpiry DateTime?
+  verifyToken               String?  
+  verifyTokenExpiry         DateTime?
+
+  createdAt              DateTime                 @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  //relations
+  resources              Resource[]               @relation("UserResources")
+  ResourceEditSuggestion ResourceEditSuggestion[]
+  likes           ResourceLike[]
+  reviews         ResourceReview[]
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+// LOCATION FOR RESOURCE
+model Location {
+  id         Int      @id @default(autoincrement())
+  resourceId Int
+  latitude   Float
+  longitude  Float
+  Resource   Resource @relation(fields: [resourceId], references: [id])
+}
+
+// RESOURCE
+model Resource {
+  id                     Int                      @id @default(autoincrement())
+  name                  String
+  description            String?
+  address                String
+  city                   String?
+  openDays               String?
+  openTime               DateTime?
+  closeTime              DateTime?
+  phone                  String?
+  rating                 Decimal                  @default(0) @db.Decimal(2, 1)
+  image                  String?
+  facebookLink           String?
+  email                  String?
+  status                 ResourceStatus  @default(PENDING)
+  url                String?
+  categoryId             Int?
+  createdById            Int?
+  createdAt              DateTime                 @default(now())
+
+  //relation
+  Location               Location[]
+  ResourceCategory       ResourceCategory?        @relation(fields: [categoryId], references: [id])
+  User                   User?                    @relation("UserResources",fields: [createdById], references: [id])
+  ResourceEditSuggestion ResourceEditSuggestion[]
+  ResourceLike           ResourceLike[]
+  ResourceReview         ResourceReview[]
+
+  // Full-text search index
+  @@index([name, description, city])
+}
+
+enum ResourceStatus{
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// CATEGORY
+model ResourceCategory {
+  id                     Int                      @id @default(autoincrement())
+  name                   String                   @unique
+  Resource               Resource[]
+  ResourceEditSuggestion ResourceEditSuggestion[]
+}
+
+// EDIT SUGGESTION
+model ResourceEditSuggestion {
+  id               Int               @id @default(autoincrement())
+  resourceId       Int
+  suggestedById    Int?
+  name             String?
+  categoryId       Int?
+  address          String?
+  openDays         String?
+  openTime         DateTime?
+  closeTime        DateTime?
+  phone            String?
+  url              String?
+  status           String            @default("pending")
+  createdAt        DateTime          @default(now())
+  //relation
+  ResourceCategory ResourceCategory? @relation(fields: [categoryId], references: [id])
+  resource         Resource          @relation(fields: [resourceId], references: [id])
+  User             User?             @relation(fields: [suggestedById], references: [id])
+}
+
+// LIKE
+model ResourceLike {
+  id         Int      @id @default(autoincrement())
+  resourceId Int
+  userId     Int
+  createdAt  DateTime @default(now())
+  //relation
+  resource   Resource @relation(fields: [resourceId], references: [id])
+  User       User     @relation(fields: [userId], references: [id])
+
+  @@unique([resourceId, userId])
+}
+
+// REVIEW
+model ResourceReview {
+  id         Int      @id @default(autoincrement())
+  resourceId Int
+  userId     Int
+  rating     Int      // 1-5 rating
+  content     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  // relation
+  resource   Resource @relation(fields: [resourceId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+}
